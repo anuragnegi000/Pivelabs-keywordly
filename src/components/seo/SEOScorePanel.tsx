@@ -22,12 +22,24 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
   const [seoScore, setSeoScore] = useState<SEOScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const [previousScore, setPreviousScore] = useState<number | null>(null);
+  const [scoreImprovement, setScoreImprovement] = useState<string | null>(null);
 
   const calculateSEOScore = async () => {
     setIsLoading(true);
     try {
       console.log('Calculating SEO score for content:', content);
       console.log('Target keyword:', targetKeyword);
+      
+      // Create a more unique storage key based on content hash
+      const contentText = content.content.map(block => block.content).join(' ');
+      const contentHash = btoa(contentText.substring(0, 100)).substring(0, 10);
+      const storageKey = `seo_score_${content.title || 'content'}_${contentHash}`;
+      const storedScore = localStorage.getItem(storageKey);
+      const prevScore = storedScore ? JSON.parse(storedScore).overall : null;
+      
+      console.log('Storage key:', storageKey);
+      console.log('Previous score found:', prevScore);
       
       const response = await fetch('/api/seo-score', {
         method: 'POST',
@@ -36,14 +48,34 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
         },
         body: JSON.stringify({
           content,
-          targetKeyword
+          targetKeyword,
+          previousScore: prevScore
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
         console.log('SEO score response:', data);
-        setSeoScore(data.score);
+        
+        const newScore = data.score;
+        setSeoScore(newScore);
+        
+        // Store the new score with timestamp
+        const scoreData = {
+          overall: newScore.overall,
+          timestamp: new Date().toISOString(),
+          targetKeyword,
+          contentHash
+        };
+        localStorage.setItem(storageKey, JSON.stringify(scoreData));
+        console.log('Stored new score:', scoreData);
+        
+        // Set improvement information
+        if (newScore.previousScore !== undefined) {
+          setPreviousScore(newScore.previousScore);
+          setScoreImprovement(newScore.improvement || null);
+        }
+        
       } else {
         console.error('Failed to calculate SEO score:', response.status);
       }
@@ -64,6 +96,17 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
 
   const triggerUpdate = () => {
     setLastUpdate(Date.now());
+  };
+
+  // Debug function to clear stored scores (useful for testing)
+  const clearStoredScores = () => {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('seo_score_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    console.log('Cleared all stored SEO scores');
+    triggerUpdate();
   };
 
   const getStatusIcon = (status: string) => {
@@ -101,6 +144,16 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
       <div className="flex items-center gap-2 mb-6">
         <TrendingUp className="w-5 h-5" />
         <h2 className="text-xl font-semibold">SEO Insights</h2>
+        {process.env.NODE_ENV === 'development' && (
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            onClick={clearStoredScores}
+            className="ml-auto text-xs"
+          >
+            Clear History
+          </Button>
+        )}
       </div>
 
       {/* Main Score */}
@@ -126,6 +179,32 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
             >
               <DonutChart score={seoScore.overall} />
               <p className="text-gray-600 mt-2">Overall SEO Score</p>
+              
+              {/* Score Improvement Display */}
+              {scoreImprovement && previousScore !== null && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-3 p-2 rounded-lg text-center"
+                  style={{
+                    backgroundColor: scoreImprovement.includes('+') ? '#ecfdf5' : 
+                                   scoreImprovement.includes('-') ? '#fef2f2' : '#f3f4f6',
+                    color: scoreImprovement.includes('+') ? '#065f46' : 
+                           scoreImprovement.includes('-') ? '#991b1b' : '#374151'
+                  }}
+                >
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <span className="font-medium">
+                      {scoreImprovement.includes('+') ? '📈' : 
+                       scoreImprovement.includes('-') ? '📉' : '📊'}
+                    </span>
+                    <span>{scoreImprovement}</span>
+                  </div>
+                  <div className="text-xs opacity-75 mt-1">
+                    Previous: {previousScore}/100
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           ) : (
             <motion.div

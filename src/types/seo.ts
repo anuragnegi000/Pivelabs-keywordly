@@ -3,6 +3,8 @@ export interface SEOScore {
   breakdown: SEOBreakdown;
   recommendations: string[];
   timestamp: Date;
+  previousScore?: number; // Previous score for comparison
+  improvement?: string; // Improvement description
 }
 
 export interface SEOBreakdown {

@@ -30,43 +30,73 @@ async function retryWithBackoff<T>(
   throw new Error('Max retries exceeded');
 }
 
-function createSEOScorePrompt(content: ParsedContent, targetKeyword?: string): string {
-  // Truncate content to reduce token usage
+function createSEOScorePrompt(content: ParsedContent, targetKeyword?: string, previousScore?: number): string {
+  console.log("Normal context is here before mapping the data",content);
   const contentText = content.content.map(block => block.content).join(' ');
+  console.log("Content text for SEO scoring",contentText);
   const words = contentText.split(' ');
+  console.log("Total words in content for SEO scoring",words);
   const truncatedContent = words.slice(0, 300).join(' ');
   const headings = content.content.filter(b => b.type === 'heading' || b.type === 'subheading').length;
   
+  
+  const contentHash = contentText.length + words.length + headings;
+  const keywordCount = targetKeyword ? (contentText.toLowerCase().match(new RegExp(targetKeyword.toLowerCase(), 'g')) || []).length : 0;
+  
+  const previousScoreContext = previousScore ? 
+    `\nPREVIOUS SCORE: ${previousScore}/100
+    
+CONTEXT: This content has been AI-optimized from the previous version. AI rewriting typically improves SEO through:
+- Better keyword integration
+- Enhanced readability
+- Stronger vocabulary
+- Improved structure
+- More engaging language
+
+Analyze this optimized version and score accordingly. If genuine improvements were made, reflect this in a higher score.` : 
+    '\nFirst analysis of original content.';
+  
   return `
-Analyze SEO for: ${content.title}
-Target: ${targetKeyword || 'None'}
+SEO Analysis Task:
+Title: "${content.title}"
+Target Keyword: "${targetKeyword || 'None'}"
+Content Length: ${words.length} words
 Headings: ${headings}
-Words: ${words.length}
+Keyword Usage: ${keywordCount} times
+Content ID: ${contentHash}${previousScoreContext}
 
-Text: ${truncatedContent}
+Content Sample: "${truncatedContent}"
 
-Score 0-100 each: content quality, keyword optimization, structure, readability, meta.
+IMPORTANT: Score this content objectively based on SEO quality. Look for:
+- Natural keyword usage and density
+- Clear, engaging writing style  
+- Good readability and flow
+- Proper structure and formatting
+- SEO-optimized language choices
 
-JSON:
+Return exact JSON:
 {
-  "overall": 85,
+  "overall": [calculate weighted average from breakdown scores],
+  "previousScore": ${previousScore || 0},
+  "improvement": "[describe specific improvements or changes]",
+  "contentAnalyzed": "${contentHash}",
   "breakdown": {
-    "contentQuality": {"score": 85, "status": "good", "details": ["Brief feedback"], "weight": 0.25},
-    "keywordOptimization": {"score": 75, "status": "good", "details": ["Brief feedback"], "weight": 0.3},
-    "structure": {"score": 90, "status": "excellent", "details": ["Brief feedback"], "weight": 0.2},
-    "readability": {"score": 80, "status": "good", "details": ["Brief feedback"], "weight": 0.15},
-    "metaData": {"score": 70, "status": "needs-improvement", "details": ["Brief feedback"], "weight": 0.1}
+    "contentQuality": {"score": [0-100], "status": "[status]", "details": ["Quality assessment"], "weight": 0.25},
+    "keywordOptimization": {"score": [0-100], "status": "[status]", "details": ["Keyword analysis"], "weight": 0.3},
+    "structure": {"score": [0-100], "status": "[status]", "details": ["Structure review"], "weight": 0.2},
+    "readability": {"score": [0-100], "status": "[status]", "details": ["Readability notes"], "weight": 0.15},
+    "metaData": {"score": [0-100], "status": "[status]", "details": ["Meta assessment"], "weight": 0.1}
   },
-  "recommendations": ["Brief suggestions"]
+  "recommendations": ["Actionable improvement suggestions"]
 }
 
-Status: excellent(90-100), good(70-89), needs-improvement(50-69), poor(0-49)
+Status: "excellent"(90-100), "good"(70-89), "needs-improvement"(50-69), "poor"(0-49)
 `;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { content, targetKeyword } = await request.json();
+    const { content, targetKeyword, previousScore } = await request.json();
     
     if (!content || typeof content !== 'object') {
       return NextResponse.json(
@@ -85,9 +115,8 @@ export async function POST(request: NextRequest) {
     const parsedContent = content as ParsedContent;
 
     try {
-      // Try AI-powered SEO analysis first
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const prompt = createSEOScorePrompt(parsedContent, targetKeyword);
+      const prompt = createSEOScorePrompt(parsedContent, targetKeyword, previousScore);
       
       const result = await retryWithBackoff(async () => {
         const result = await model.generateContent(prompt);
@@ -95,11 +124,9 @@ export async function POST(request: NextRequest) {
         return response.text();
       });
 
-      // Parse AI response
       const cleanResponse = result.replace(/```json\s*|\s*```/g, '').trim();
       const aiScore = JSON.parse(cleanResponse);
       
-      // Add timestamp
       aiScore.timestamp = new Date();
       
       return NextResponse.json({ 
@@ -110,8 +137,17 @@ export async function POST(request: NextRequest) {
     } catch (aiError: any) {
       console.log('AI SEO analysis failed, using fallback:', aiError.message);
       
-      // Fallback to static analysis
       const seoScore = calculateSEOScore(parsedContent, targetKeyword);
+      
+      if (previousScore) {
+        const improvement = seoScore.overall - previousScore;
+        (seoScore as any).previousScore = previousScore;
+        (seoScore as any).improvement = improvement > 0 ? `+${improvement} points better` : 
+                                       improvement < 0 ? `${improvement} points worse` : 'No change';
+      } else {
+        (seoScore as any).previousScore = 0;
+        (seoScore as any).improvement = 'First analysis';
+      }
       
       return NextResponse.json({ 
         score: seoScore,

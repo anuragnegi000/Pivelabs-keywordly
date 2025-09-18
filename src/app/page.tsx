@@ -9,6 +9,8 @@ import { Loader2, Globe, Edit3, TrendingUp } from 'lucide-react';
 import { ParsedContent, ContentBlock } from '@/types/content';
 import TipTapEditor from '@/components/editor/TipTapEditor';
 import SEOScorePanel from '@/components/seo/SEOScorePanel';
+import LightRays from '@/components/ui/Lightbackground';
+import RotatingText from '@/components/ui/RotatingText';
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -202,110 +204,136 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="text-center max-w-2xl mx-auto"
-      >
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-5xl font-bold text-gray-900 mb-6"
-        >
-          SEO AI Editor
-        </motion.h1>
-        
-        <motion.p
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-xl text-gray-600 mb-12"
-        >
-          Transform any webpage into SEO-optimized content with AI-powered rewriting
-        </motion.p>
+    <div className="min-h-screen relative bg-black overflow-hidden">
+      {/* Light Background with Rays */}
+      <div className="absolute inset-0">
+        <LightRays
+          raysOrigin="top-center"
+          raysColor="#00ffff"
+          raysSpeed={1.5}
+          lightSpread={0.8}
+          rayLength={1.2}
+          followMouse={true}
+          mouseInfluence={0.1}
+          noiseAmount={0.1}
+          distortion={0.05}
+          className="w-full h-full"
+        />
+      </div>
+      
+      {/* Content over the light background */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 lg:p-8">
+        <div className="w-full max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-4 lg:mb-6"
+          >
+            {/* <h1>
+              KEYWORDLY
+            </h1>
+            <RotatingText
+              texts={['Keywordly', 'AI SEO', 'OPTIMIZER', 'EDITOR']}
+              mainClassName="inline-flex px-3 sm:px-4 md:px-6 bg-blue-600 text-black font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl py-1 sm:py-2 md:py-3 justify-center rounded-lg shadow-lg"
+              staggerFrom={"last"}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "-120%" }}
+              staggerDuration={0.025}
+              splitLevelClassName="overflow-hidden"
+              transition={{ type: "spring", damping: 30, stiffness: 400 }}
+              rotationInterval={2000}
+            /> */}
+          </motion.div>
+            
+            {/* <motion.p
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="text-lg lg:text-2xl text-white/90 mb-8 lg:mb-12 drop-shadow-md px-4"
+            >
+              Transform any webpage into SEO-optimized content with AI-powered rewriting
+            </motion.p> */}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
-          <Card className="p-8 shadow-xl">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                <Globe className="w-6 h-6 text-gray-500" />
-                <Input
-                  type="url"
-                  placeholder="Enter webpage URL to get started..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="border-0 bg-transparent text-lg placeholder:text-gray-400 focus:ring-0"
-                  disabled={isLoading}
-                />
-              </div>
-              
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-red-600 text-sm bg-red-50 p-3 rounded-lg"
-                >
-                  {error}
-                </motion.div>
-              )}
+            {/* Main URL Input Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              className="mb-8 lg:mb-16 px-4"
+            >
+              <Card className="p-4  lg:p-8 shadow-2xl bg-transparent backdrop-blur-sm border-0 max-w-3xl mx-auto">
+                <form onSubmit={handleSubmit} className="space-y-2 lg:space-y-2">
+                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4 p-4 lg:p-6 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border-2 border-cyan-100">
+                    {/* <Globe className="w-6 lg:w-8 h-6 lg:h-8 text-cyan-600 flex-shrink-0 mx-auto lg:mx-0" /> */}
+                    <Input
+                      type="url"
+                      placeholder="Paste your webpage URL here to get started..."
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="border-0 bg-transparent text-base lg:text-xl placeholder:text-gray-500 focus:ring-0 font-medium"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  {/* Optional keyword input */}
+                  {/* <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4 p-3 lg:p-4 bg-gray-50 rounded-lg">
+                    <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mx-auto lg:mx-0">
+                      <TrendingUp className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <Input
+                      placeholder="Target keyword for SEO optimization (optional)"
+                      value={targetKeyword}
+                      onChange={(e) => setTargetKeyword(e.target.value)}
+                      className="border-0 bg-transparent placeholder:text-gray-400 focus:ring-0"
+                      disabled={isLoading}
+                    />
+                  </div> */}
+                  
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-red-600 text-sm bg-red-50 p-3 lg:p-4 rounded-lg border border-red-200"
+                    >
+                      {error}
+                    </motion.div>
+                  )}
 
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full text-lg py-6"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    Analyzing webpage...
-                  </>
-                ) : (
-                  'Start Optimizing'
-                )}
-              </Button>
-            </form>
-          </Card>
-        </motion.div>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="w-1/2 text-md  lg:text-xl py-6 lg:py-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 lg:w-6 h-5 lg:h-6 animate-spin mr-2 lg:mr-3" />
+                        Analyzing webpage...
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 className="w-5 lg:w-6 h-5 lg:h-6 mr-2 lg:mr-3" />
+                        Start AI Optimization
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Card>
+            </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1 }}
-          className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8"
-        >
-          <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Globe className="w-8 h-8 text-blue-600" />
-            </div>
-            <h3 className="font-semibold mb-2">Fetch Content</h3>
-            <p className="text-gray-600 text-sm">Extract and parse webpage content automatically</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Edit3 className="w-8 h-8 text-green-600" />
-            </div>
-            <h3 className="font-semibold mb-2">AI Rewrite</h3>
-            <p className="text-gray-600 text-sm">Enhance content with AI-powered optimization</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="w-8 h-8 text-purple-600" />
-            </div>
-            <h3 className="font-semibold mb-2">SEO Score</h3>
-            <p className="text-gray-600 text-sm">Real-time SEO analysis and recommendations</p>
-          </div>
-        </motion.div>
-      </motion.div>
+            {/* Features Grid */}
+            
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

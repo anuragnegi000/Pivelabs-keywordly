@@ -79,7 +79,8 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       const { from, to } = editor.state.selection;
       const text = editor.state.doc.textBetween(from, to);
       
-      if (text && text.length > 5) {
+      // Show rewrite button for any selected text (even single words)
+      if (text && text.trim().length > 0) {
         setSelectedText(text);
         setShowRewriteButton(true);
         
@@ -129,58 +130,64 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
   const highlightKeywords = (keywords: SEOKeywordSuggestion[]) => {
     if (!editor) return;
 
-    // First, clear any existing highlights
+    console.log('Highlighting keywords:', keywords);
+
+    // First, clear ALL existing highlights
     editor.chain().focus().unsetSEOHighlight().run();
 
-    keywords.forEach((keywordData, index) => {
-      const searchTerm = keywordData.word.toLowerCase().trim();
-      const doc = editor.state.doc;
-      
-      // Search through the document text nodes
-      doc.descendants((node, pos) => {
-        if (node.isText && node.text) {
-          const text = node.text.toLowerCase();
-          let searchIndex = 0;
-          
-          while (true) {
-            const foundIndex = text.indexOf(searchTerm, searchIndex);
-            if (foundIndex === -1) break;
+    // Add a small delay to ensure the unset operation completes
+    setTimeout(() => {
+      keywords.forEach((keywordData, index) => {
+        const searchTerm = keywordData.word.toLowerCase().trim();
+        const doc = editor.state.doc;
+        
+        // Search through the document text nodes
+        doc.descendants((node, pos) => {
+          if (node.isText && node.text) {
+            const text = node.text.toLowerCase();
+            let searchIndex = 0;
             
-            // Check if it's a whole word (not part of another word)
-            const beforeChar = foundIndex > 0 ? text[foundIndex - 1] : ' ';
-            const afterChar = foundIndex + searchTerm.length < text.length ? text[foundIndex + searchTerm.length] : ' ';
-            
-            if (/\W/.test(beforeChar) && /\W/.test(afterChar)) {
-              const from = pos + foundIndex;
-              const to = pos + foundIndex + searchTerm.length;
+            while (true) {
+              const foundIndex = text.indexOf(searchTerm, searchIndex);
+              if (foundIndex === -1) break;
               
-              // Verify the positions are valid
-              if (from >= 0 && to <= doc.content.size && from < to) {
-                editor.chain()
-                  .focus()
-                  .setTextSelection({ from, to })
-                  .setSEOHighlight({
-                    'data-improvement-id': `keyword-${index}-${foundIndex}`,
-                    'data-improvement-type': 'keyword',
-                    'data-suggestion': keywordData.suggestion,
-                    'data-reason': keywordData.reason,
-                    'data-original-word': keywordData.word,
-                    'data-from': from.toString(),
-                    'data-to': to.toString()
-                  })
-                  .run();
+              // Check if it's a whole word (not part of another word)
+              const beforeChar = foundIndex > 0 ? text[foundIndex - 1] : ' ';
+              const afterChar = foundIndex + searchTerm.length < text.length ? text[foundIndex + searchTerm.length] : ' ';
+              
+              if (/\W/.test(beforeChar) && /\W/.test(afterChar)) {
+                const from = pos + foundIndex;
+                const to = pos + foundIndex + searchTerm.length;
+                
+                // Verify the positions are valid
+                if (from >= 0 && to <= doc.content.size && from < to) {
+                  editor.chain()
+                    .focus()
+                    .setTextSelection({ from, to })
+                    .setSEOHighlight({
+                      'data-improvement-id': `keyword-${index}-${foundIndex}`,
+                      'data-improvement-type': 'keyword',
+                      'data-suggestion': keywordData.suggestion,
+                      'data-reason': keywordData.reason,
+                      'data-original-word': keywordData.word,
+                      'data-from': from.toString(),
+                      'data-to': to.toString()
+                    })
+                    .run();
+                }
               }
+              
+              searchIndex = foundIndex + 1;
             }
-            
-            searchIndex = foundIndex + 1;
           }
-        }
-        return true; // Continue traversing
+          return true; // Continue traversing
+        });
       });
-    });
-    
-    // Clear selection after highlighting
-    editor.commands.setTextSelection(0);
+      
+      // Clear selection after highlighting
+      editor.commands.setTextSelection(0);
+      console.log('Keyword highlighting completed');
+    }, 100);
   };
 
   const handleSEOHighlightClick = (event: MouseEvent) => {
@@ -283,6 +290,8 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       console.log('Starting rewrite for:', selectedText);
       console.log('Target keyword:', targetKeyword);
       
+      const { from, to } = editor.state.selection;
+      
       const response = await fetch('/api/ai-rewrite', {
         method: 'POST',
         headers: {
@@ -304,10 +313,16 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       const result: RewriteResponse = await response.json();
       console.log('Rewrite result:', result);
       
-      const { from, to } = editor.state.selection;
       console.log('Replacing text from', from, 'to', to);
       
-      // Replace the selected text with the rewritten version
+      // First, remove any SEO highlights in the selected range
+      editor.chain()
+        .focus()
+        .setTextSelection({ from, to })
+        .unsetSEOHighlight()
+        .run();
+      
+      // Then replace the selected text with the rewritten version
       editor.chain()
         .focus()
         .insertContentAt({ from, to }, result.rewrittenText)
