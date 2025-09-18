@@ -11,11 +11,19 @@ declare module '@tiptap/core' {
         'data-improvement-id': string;
         'data-improvement-type': string;
         'data-suggestion': string;
+        'data-reason'?: string;
+        'data-original-word'?: string;
+        'data-from'?: string;
+        'data-to'?: string;
       }) => ReturnType;
       toggleSEOHighlight: (attributes?: { 
         'data-improvement-id': string;
         'data-improvement-type': string;
         'data-suggestion': string;
+        'data-reason'?: string;
+        'data-original-word'?: string;
+        'data-from'?: string;
+        'data-to'?: string;
       }) => ReturnType;
       unsetSEOHighlight: () => ReturnType;
     };
@@ -66,6 +74,54 @@ export const SEOHighlight = Mark.create<SEOHighlightOptions>({
           }
           return {
             'data-suggestion': attributes['data-suggestion'],
+          };
+        },
+      },
+      'data-reason': {
+        default: null,
+        parseHTML: element => element.getAttribute('data-reason'),
+        renderHTML: attributes => {
+          if (!attributes['data-reason']) {
+            return {};
+          }
+          return {
+            'data-reason': attributes['data-reason'],
+          };
+        },
+      },
+      'data-original-word': {
+        default: null,
+        parseHTML: element => element.getAttribute('data-original-word'),
+        renderHTML: attributes => {
+          if (!attributes['data-original-word']) {
+            return {};
+          }
+          return {
+            'data-original-word': attributes['data-original-word'],
+          };
+        },
+      },
+      'data-from': {
+        default: null,
+        parseHTML: element => element.getAttribute('data-from'),
+        renderHTML: attributes => {
+          if (!attributes['data-from']) {
+            return {};
+          }
+          return {
+            'data-from': attributes['data-from'],
+          };
+        },
+      },
+      'data-to': {
+        default: null,
+        parseHTML: element => element.getAttribute('data-to'),
+        renderHTML: attributes => {
+          if (!attributes['data-to']) {
+            return {};
+          }
+          return {
+            'data-to': attributes['data-to'],
           };
         },
       },

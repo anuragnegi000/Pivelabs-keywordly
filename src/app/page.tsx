@@ -17,6 +17,7 @@ export default function Home() {
   const [content, setContent] = useState<ParsedContent | null>(null);
   const [error, setError] = useState('');
   const [targetKeyword, setTargetKeyword] = useState('');
+  const [seoUpdateTrigger, setSeoUpdateTrigger] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,8 +174,7 @@ export default function Home() {
                   content={content.content}
                   onContentChange={handleContentChange}
                   onSEOUpdate={() => {
-                    // Trigger SEO panel update
-                    setContent({ ...content });
+                    setSeoUpdateTrigger(prev => prev + 1);
                   }}
                   url={url}
                 />
@@ -193,6 +193,7 @@ export default function Home() {
               content={content}
               targetKeyword={targetKeyword}
               onExport={handleExport}
+              lastUpdate={seoUpdateTrigger}
             />
           </motion.div>
         </div>

@@ -37,19 +37,12 @@ export interface RewriteResponse {
   confidence: number;
 }
 
-export interface SEOImprovement {
-  text: string;
-  reason: string;
+export interface SEOKeywordSuggestion {
+  word: string;
   suggestion: string;
-  type: 'keyword' | 'readability' | 'structure' | 'metadata' | 'general';
-}
-
-export interface SEOKeyword {
-  keyword: string;
-  frequency: string;
-  recommendation: string;
+  reason: string;
 }
 
 export interface SEOAnalysis {
-  keywords: string[];
+  keywords: SEOKeywordSuggestion[];
 }

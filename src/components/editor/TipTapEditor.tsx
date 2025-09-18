@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Wand2, Loader2, Target, Lightbulb } from 'lucide-react';
-import { ContentBlock, SEOAnalysis } from '@/types/content';
+import { ContentBlock, SEOAnalysis, SEOKeywordSuggestion } from '@/types/content';
 import { RewriteResponse } from '@/types/content';
 
 interface TipTapEditorProps {
@@ -126,70 +126,84 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     }
   };
 
-  const highlightKeywords = (keywords: string[]) => {
+  const highlightKeywords = (keywords: SEOKeywordSuggestion[]) => {
     if (!editor) return;
 
     // First, clear any existing highlights
     editor.chain().focus().unsetSEOHighlight().run();
 
-    keywords.forEach((keyword, index) => {
-      const content = editor.getHTML();
+    keywords.forEach((keywordData, index) => {
+      const searchTerm = keywordData.word.toLowerCase().trim();
+      const doc = editor.state.doc;
       
-      if (content.toLowerCase().includes(keyword.toLowerCase())) {
-        // Find all instances of the keyword in the document
-        const doc = editor.state.doc;
-        const text = doc.textContent;
-        let searchIndex = 0;
-        
-        while (true) {
-          const keywordIndex = text.toLowerCase().indexOf(keyword.toLowerCase(), searchIndex);
-          if (keywordIndex === -1) break;
+      // Search through the document text nodes
+      doc.descendants((node, pos) => {
+        if (node.isText && node.text) {
+          const text = node.text.toLowerCase();
+          let searchIndex = 0;
           
-          const from = keywordIndex;
-          const to = keywordIndex + keyword.length;
-          
-          editor.chain()
-            .focus()
-            .setTextSelection({ from, to })
-            .setSEOHighlight({
-              'data-improvement-id': `keyword-${index}`,
-              'data-improvement-type': 'keyword',
-              'data-suggestion': `Improve this "${keyword}" for better SEO`
-            })
-            .run();
+          while (true) {
+            const foundIndex = text.indexOf(searchTerm, searchIndex);
+            if (foundIndex === -1) break;
             
-          searchIndex = keywordIndex + keyword.length;
+            // Check if it's a whole word (not part of another word)
+            const beforeChar = foundIndex > 0 ? text[foundIndex - 1] : ' ';
+            const afterChar = foundIndex + searchTerm.length < text.length ? text[foundIndex + searchTerm.length] : ' ';
+            
+            if (/\W/.test(beforeChar) && /\W/.test(afterChar)) {
+              const from = pos + foundIndex;
+              const to = pos + foundIndex + searchTerm.length;
+              
+              // Verify the positions are valid
+              if (from >= 0 && to <= doc.content.size && from < to) {
+                editor.chain()
+                  .focus()
+                  .setTextSelection({ from, to })
+                  .setSEOHighlight({
+                    'data-improvement-id': `keyword-${index}-${foundIndex}`,
+                    'data-improvement-type': 'keyword',
+                    'data-suggestion': keywordData.suggestion,
+                    'data-reason': keywordData.reason,
+                    'data-original-word': keywordData.word,
+                    'data-from': from.toString(),
+                    'data-to': to.toString()
+                  })
+                  .run();
+              }
+            }
+            
+            searchIndex = foundIndex + 1;
+          }
         }
-      }
+        return true; // Continue traversing
+      });
     });
+    
+    // Clear selection after highlighting
+    editor.commands.setTextSelection(0);
   };
 
   const handleSEOHighlightClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
     if (target.classList.contains('seo-highlight')) {
       const suggestion = target.getAttribute('data-suggestion');
+      const reason = target.getAttribute('data-reason');
+      const originalWord = target.getAttribute('data-original-word');
+      const fromPos = target.getAttribute('data-from');
+      const toPos = target.getAttribute('data-to');
       
-      if (suggestion && editor) {
-        // Get the text content of the highlighted element
-        const highlightedText = target.textContent || '';
+      if (suggestion && originalWord && fromPos && toPos && editor) {
+        const from = parseInt(fromPos);
+        const to = parseInt(toPos);
         
-        // Find the position of this text in the editor
-        const doc = editor.state.doc;
-        const text = doc.textContent;
-        const position = text.indexOf(highlightedText);
+        // Set precise selection to just the highlighted word
+        editor.chain().focus().setTextSelection({ from, to }).run();
         
-        if (position !== -1) {
-          const from = position;
-          const to = position + highlightedText.length;
-          
-          // Set selection to the highlighted text
-          editor.chain().focus().setTextSelection({ from, to }).run();
-          
-          // Set up rewrite dialog
-          setSelectedText(highlightedText);
-          setTargetKeyword(''); // Let AI suggest improvements
-          setShowRewriteDialog(true);
-        }
+        // Set up rewrite dialog with just the selected word
+        const selectedWord = editor.state.doc.textBetween(from, to);
+        setSelectedText(selectedWord);
+        setTargetKeyword(suggestion);
+        setShowRewriteDialog(true);
       }
     }
   };
@@ -266,6 +280,9 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     setIsRewriting(true);
     
     try {
+      console.log('Starting rewrite for:', selectedText);
+      console.log('Target keyword:', targetKeyword);
+      
       const response = await fetch('/api/ai-rewrite', {
         method: 'POST',
         headers: {
@@ -285,14 +302,29 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       }
 
       const result: RewriteResponse = await response.json();
+      console.log('Rewrite result:', result);
       
       const { from, to } = editor.state.selection;
-      editor.chain().focus().insertContentAt({ from, to }, result.rewrittenText).run();
+      console.log('Replacing text from', from, 'to', to);
+      
+      // Replace the selected text with the rewritten version
+      editor.chain()
+        .focus()
+        .insertContentAt({ from, to }, result.rewrittenText)
+        .run();
+      
+      console.log('Text replaced successfully');
       
       setShowRewriteDialog(false);
       setShowRewriteButton(false);
       setTargetKeyword('');
-      onSEOUpdate?.();
+      
+      // Trigger SEO update after a short delay to ensure editor has updated
+      setTimeout(() => {
+        console.log('Triggering SEO update after rewrite');
+        onSEOUpdate?.();
+      }, 500);
+      
     } catch (error) {
       console.error('Rewrite error:', error);
       alert(error instanceof Error ? error.message : 'Failed to rewrite content');
@@ -380,13 +412,19 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
             <div>
               <label className="text-sm font-medium mb-2 block flex items-center gap-2">
                 <Target className="w-4 h-4" />
-                Target Keyword (optional)
+                Target Keyword for SEO Optimization
               </label>
               <Input
                 placeholder="Enter keyword to optimize for..."
                 value={targetKeyword}
                 onChange={(e) => setTargetKeyword(e.target.value)}
+                className="focus:ring-2 focus:ring-green-500"
               />
+              {targetKeyword && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ This text will be optimized for "{targetKeyword}"
+                </p>
+              )}
             </div>
 
             <div className="flex gap-2">

@@ -68,23 +68,15 @@ function createRewritePrompt(
   tone: string = 'professional', 
   length: string = 'same'
 ): string {
-  let prompt = `You are an expert content writer and SEO specialist. Please rewrite the following text with these requirements:
+  let prompt = `Rewrite this text:
 - Tone: ${tone}
-- Length: ${length === 'shorter' ? 'Make it more concise' : length === 'longer' ? 'Expand with more detail' : 'Keep similar length'}
-- Improve readability and engagement
-- Maintain the original meaning and key information`;
+- Length: ${length === 'shorter' ? 'shorter' : length === 'longer' ? 'longer' : 'same'}`;
 
   if (targetKeyword) {
-    prompt += `\n- Optimize for the keyword: "${targetKeyword}" (use naturally, don't overstuff)`;
+    prompt += `\n- Include keyword: "${targetKeyword}"`;
   }
 
-  prompt += `\n\nOriginal text:\n"${text}"\n\nPlease format your response as:
-REWRITTEN:
-[Your rewritten version]
-
-CHANGES:
-- [List key changes you made]
-- [Another change]`;
+  prompt += `\n\nText: "${text}"\n\nFormat:\nREWRITTEN:\n[new version]\n\nCHANGES:\n- [key changes]`;
 
   return prompt;
 }

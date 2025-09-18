@@ -15,9 +15,10 @@ interface SEOScorePanelProps {
   content: ParsedContent;
   targetKeyword?: string;
   onExport?: (format: 'html' | 'markdown') => void;
+  lastUpdate?: number;
 }
 
-export default function SEOScorePanel({ content, targetKeyword, onExport }: SEOScorePanelProps) {
+export default function SEOScorePanel({ content, targetKeyword, onExport, lastUpdate: externalUpdate }: SEOScorePanelProps) {
   const [seoScore, setSeoScore] = useState<SEOScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
@@ -25,6 +26,9 @@ export default function SEOScorePanel({ content, targetKeyword, onExport }: SEOS
   const calculateSEOScore = async () => {
     setIsLoading(true);
     try {
+      console.log('Calculating SEO score for content:', content);
+      console.log('Target keyword:', targetKeyword);
+      
       const response = await fetch('/api/seo-score', {
         method: 'POST',
         headers: {
@@ -38,7 +42,10 @@ export default function SEOScorePanel({ content, targetKeyword, onExport }: SEOS
 
       if (response.ok) {
         const data = await response.json();
+        console.log('SEO score response:', data);
         setSeoScore(data.score);
+      } else {
+        console.error('Failed to calculate SEO score:', response.status);
       }
     } catch (error) {
       console.error('Failed to calculate SEO score:', error);
@@ -53,7 +60,7 @@ export default function SEOScorePanel({ content, targetKeyword, onExport }: SEOS
     }, 1000);
 
     return () => clearTimeout(debounceTimer);
-  }, [content, targetKeyword, lastUpdate]);
+  }, [content, targetKeyword, lastUpdate, externalUpdate]);
 
   const triggerUpdate = () => {
     setLastUpdate(Date.now());
