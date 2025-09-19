@@ -20,9 +20,12 @@ interface TipTapEditorProps {
   onContentChange: (blocks: ContentBlock[]) => void;
   onSEOUpdate?: () => void;
   url?: string;
+  initialUrl?: string;
 }
 
-export default function TipTapEditor({ content, onContentChange, onSEOUpdate, url }: TipTapEditorProps) {
+export default function TipTapEditor({ content, onContentChange, onSEOUpdate, url, initialUrl }: TipTapEditorProps) {
+  const [currentUrl, setCurrentUrl] = useState(initialUrl || '');
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const [isRewriting, setIsRewriting] = useState(false);
@@ -32,13 +35,57 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     tone: 'professional' as const,
     length: 'same' as const
   });
-  
-  // Missing state variables
   const [showRewriteButton, setShowRewriteButton] = useState(false);
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [showRewriteDialog, setShowRewriteDialog] = useState(false);
+
+  const loadContentFromUrl = async (urlToLoad: string) => {
+    if (!urlToLoad.trim()) return;
+    
+    setIsLoadingContent(true);
+    try {
+      const response = await fetch('/api/fetch-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlToLoad }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch content');
+      }
+
+      const data = await response.json();
+      const newContent = data.content.content;
+      onContentChange(newContent);
+      
+      if (editor) {
+        const htmlContent = contentToHTML(newContent);
+        editor.commands.setContent(htmlContent);
+      }
+    } catch (error) {
+      console.error('Error loading content:', error);
+    } finally {
+      setIsLoadingContent(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUrl && currentUrl !== url) {
+      const timeoutId = setTimeout(() => {
+        loadContentFromUrl(currentUrl);
+      }, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentUrl]);
+
+  useEffect(() => {
+    if (url && url !== currentUrl) {
+      setCurrentUrl(url);
+      loadContentFromUrl(url);
+    }
+  }, [url]);
 
   const contentToHTML = (blocks: ContentBlock[]) => {
     return blocks.map(block => {
@@ -74,14 +121,14 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-[500px] p-4',
+        class: 'prose prose-lg prose-headings:font-bold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl max-w-none focus:outline-none min-h-[500px] p-4 border rounded-lg',
       },
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       const updatedBlocks = parseHTMLToBlocks(html);
       onContentChange(updatedBlocks);
-      // Don't trigger SEO update on every keystroke - only after rewrite
+      //only after rewrite
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to } = editor.state.selection;
@@ -103,6 +150,13 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       }
     },
   });
+
+  useEffect(() => {
+    if (editor && content) {
+      const htmlContent = contentToHTML(content);
+      editor.commands.setContent(htmlContent);
+    }
+  }, [content, editor]);
 
   const analyzeSEOKeywords = async () => {
     if (!editor || !content.length) return;
@@ -369,28 +423,29 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
 
   return (
     <div className="relative">
-      {/* SEO Analysis Button */}
-      <div className="mb-4 flex gap-2">
-        <Button
-          onClick={analyzeSEOKeywords}
-          disabled={isAnalyzing || !content.length}
-          className="flex items-center gap-2"
-          variant="outline"
-        >
-          {isAnalyzing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Lightbulb className="w-4 h-4" />
+      <div className="mb-4 space-y-4">    
+        <div className="flex gap-2">
+          <Button
+            onClick={analyzeSEOKeywords}
+            disabled={isAnalyzing || !content.length}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            {isAnalyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Lightbulb className="w-4 h-4" />
+            )}
+            {isAnalyzing ? 'Analyzing...' : 'Analyze SEO Keywords'}
+          </Button>
+          
+          {seoAnalysis && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              {seoAnalysis.keywords.length} keywords highlighted
+            </Badge>
           )}
-          {isAnalyzing ? 'Analyzing...' : 'Analyze SEO Keywords'}
-        </Button>
-        
-        {seoAnalysis && (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <Target className="w-3 h-3" />
-            {seoAnalysis.keywords.length} keywords highlighted
-          </Badge>
-        )}
+        </div>
       </div>
 
       {/* Floating Rewrite Button */}

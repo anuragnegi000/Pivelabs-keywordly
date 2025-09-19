@@ -21,8 +21,18 @@ interface SEOScorePanelProps {
 export default function SEOScorePanel({ content, targetKeyword, onExport, lastUpdate: externalUpdate }: SEOScorePanelProps) {
   const [seoScore, setSeoScore] = useState<SEOScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [previousScore, setPreviousScore] = useState<number | null>(null);
   const [scoreImprovement, setScoreImprovement] = useState<string | null>(null);
+
+  const formatMarkdownText = (text: string): string => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/`(.*?)`/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/_(.*?)_/g, '$1');
+  };
 
   const calculateSEOScore = async () => {
     console.log('=== calculateSEOScore called ===');
@@ -272,7 +282,7 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
             {seoScore.recommendations.slice(0, 3).map((recommendation, index) => (
               <li key={index} className="text-sm text-blue-800 flex items-start gap-2">
                 <span className="w-1 h-1 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                <span>{recommendation}</span>
+                <span>{formatMarkdownText(recommendation)}</span>
               </li>
             ))}
           </ul>

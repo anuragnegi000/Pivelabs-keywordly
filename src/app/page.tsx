@@ -78,14 +78,16 @@ export default function Home() {
 
       setContent(data.content);
       
-      // Add smooth transition instead of instant switch
-      setIsTransitioning(true);
-      
-      // Small delay to show success state, then transition
-      setTimeout(() => {
-        setShowEditor(true);
-        setIsTransitioning(false);
-      }, 800);
+      if (showEditor) {
+        setSeoUpdateTrigger(prev => prev + 1);
+      } else {
+        setIsTransitioning(true);
+        
+        setTimeout(() => {
+          setShowEditor(true);
+          setIsTransitioning(false);
+        }, 800);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch content';
       
@@ -265,6 +267,7 @@ export default function Home() {
                         });
                       }}
                       url={url}
+                      initialUrl={url}
                     />
                   </motion.div>
                 </Card>
