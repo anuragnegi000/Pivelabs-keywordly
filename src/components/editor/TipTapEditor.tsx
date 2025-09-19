@@ -95,9 +95,11 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
         editor.commands.clearContent();
         editor.commands.setContent(sanitizedContent, { emitUpdate: true });
         
-        // Convert HTML back to ContentBlocks for SEO analysis
-        const updatedBlocks = parseHTMLToBlocks(sanitizedContent);
-        onContentChange(updatedBlocks);
+        // Convert HTML back to ContentBlocks for SEO analysis - only if not skipping
+        if (!skipSEOUpdate) {
+          const updatedBlocks = parseHTMLToBlocks(sanitizedContent);
+          onContentChange(updatedBlocks);
+        }
         
         // Trigger onSEOUpdate if available and not skipped
         if (onSEOUpdate && !skipSEOUpdate) {
@@ -246,19 +248,23 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     }
   }, [url, currentUrl, editor]);
 
-  // Effect for debounced URL loading from manual input
   useEffect(() => {
     if (currentUrl && currentUrl.trim() && currentUrl !== url && currentUrl.startsWith('http') && editor) {
       console.log('Debouncing URL input:', currentUrl);
       const timeoutId = setTimeout(() => {
-        loadContentFromUrl(currentUrl);
+        const loadContent = async () => {
+          await loadContentFromUrl(currentUrl, true); 
+          setTimeout(() => {
+            analyzeSEOKeywords();
+          }, 1000);
+        };
+        loadContent();
       }, 1000);
       return () => clearTimeout(timeoutId);
     }
   }, [currentUrl, url, editor]);
 
-  // Effect to handle force reload when form is submitted on editor page
-  useEffect(() => {
+   useEffect(() => {
     if (forceReload && forceReload > 0 && url && url.trim() && url.startsWith('http') && editor) {
       console.log('Force reloading content for URL:', url, 'trigger:', forceReload);
       setCurrentUrl(url);
@@ -562,14 +568,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
           )}
           
           {/* Debug button for testing HTML rendering */}
-          <Button
-            onClick={testHTMLRendering}
-            variant="outline"
-            size="sm"
-            className="bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
-          >
-            🧪 Test HTML
-          </Button>
+          {/*  */}
         </div>
       </div>
 

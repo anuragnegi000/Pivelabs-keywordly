@@ -64,10 +64,8 @@ export default function Home() {
 
     try {
       if (showEditor) {
-        // When already on editor page, just trigger reload with the new URL
-        // The TipTap editor will handle fetching content via /api/fetch-page
-        setSeoUpdateTrigger(prev => prev + 1); // Trigger reload in editor
-        setContentUpdateTrigger(prev => prev + 1); // Trigger content update
+        setSeoUpdateTrigger(prev => prev + 1); 
+        setContentUpdateTrigger(prev => prev + 1);
         setIsLoading(false);
         return;
       }
