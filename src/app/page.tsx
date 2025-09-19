@@ -23,6 +23,7 @@ export default function Home() {
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [targetKeyword, setTargetKeyword] = useState('');
   const [seoUpdateTrigger, setSeoUpdateTrigger] = useState(0);
+  const [contentUpdateTrigger, setContentUpdateTrigger] = useState(0);
 
   // Auto-hide error toast after 5 seconds
   useEffect(() => {
@@ -62,6 +63,15 @@ export default function Home() {
     setShowErrorToast(false);
 
     try {
+      if (showEditor) {
+        // When already on editor page, just trigger reload with the new URL
+        // The TipTap editor will handle fetching content via /api/fetch-page
+        setSeoUpdateTrigger(prev => prev + 1); // Trigger reload in editor
+        setContentUpdateTrigger(prev => prev + 1); // Trigger content update
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/fetch-content', {
         method: 'POST',
         headers: {
@@ -72,22 +82,20 @@ export default function Home() {
 
       const data = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok) { 
         throw new Error(data.error || 'Failed to fetch content');
       }
 
       setContent(data.content);
       
-      if (showEditor) {
-        setSeoUpdateTrigger(prev => prev + 1);
-      } else {
-        setIsTransitioning(true);
-        
-        setTimeout(() => {
-          setShowEditor(true);
-          setIsTransitioning(false);
-        }, 800);
-      }
+      // Show editor for first time
+      setIsTransitioning(true);
+      setContentUpdateTrigger(prev => prev + 1); // Initial content load
+      
+      setTimeout(() => {
+        setShowEditor(true);
+        setIsTransitioning(false);
+      }, 800);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch content';
       
@@ -259,15 +267,12 @@ export default function Home() {
                       onContentChange={handleContentChange}
                       onSEOUpdate={() => {
                         console.log('=== onSEOUpdate called ===');
-                        console.log('Current seoUpdateTrigger:', seoUpdateTrigger);
-                        setSeoUpdateTrigger(prev => {
-                          const newValue = prev + 1;
-                          console.log('Setting new seoUpdateTrigger:', newValue);
-                          return newValue;
-                        });
+                        // Only increment for actual content changes, not SEO analysis
+                        setContentUpdateTrigger(prev => prev + 1);
                       }}
                       url={url}
                       initialUrl={url}
+                      forceReload={seoUpdateTrigger}
                     />
                   </motion.div>
                 </Card>
@@ -289,7 +294,7 @@ export default function Home() {
                     content={content}
                     targetKeyword={targetKeyword}
                     onExport={handleExport}
-                    lastUpdate={seoUpdateTrigger}
+                    lastUpdate={contentUpdateTrigger}
                   />
                 </motion.div>
               </motion.div>

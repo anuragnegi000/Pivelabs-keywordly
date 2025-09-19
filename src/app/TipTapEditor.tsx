@@ -24,11 +24,10 @@ interface TipTapEditorProps {
   onSEOUpdate?: () => void;
   url?: string;
   initialUrl?: string;
-  forceReload?: number; // Add trigger for force reload
 }
 
-export default function TipTapEditor({ content, onContentChange, onSEOUpdate, url, initialUrl, forceReload }: TipTapEditorProps) {
-  console.log('TipTapEditor props:', { content, url, initialUrl, forceReload });
+export default function TipTapEditor({ content, onContentChange, onSEOUpdate, url, initialUrl }: TipTapEditorProps) {
+  console.log('TipTapEditor props:', { content, url, initialUrl });
   const [currentUrl, setCurrentUrl] = useState(initialUrl || url || '');
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [selectedText, setSelectedText] = useState('');
@@ -45,13 +44,11 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [showRewriteDialog, setShowRewriteDialog] = useState(false);
-  const [preventContentOverwrite, setPreventContentOverwrite] = useState(false);
 
-  const loadContentFromUrl = async (urlToLoad: string, skipSEOUpdate = false) => {
+  const loadContentFromUrl = async (urlToLoad: string) => {
     if (!urlToLoad.trim() || !editor) return;
     
     setIsLoadingContent(true);
-    setPreventContentOverwrite(false); // Allow content updates when loading new content
     console.log('Loading content from URL:', urlToLoad);
     
     try {
@@ -99,8 +96,8 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
         const updatedBlocks = parseHTMLToBlocks(sanitizedContent);
         onContentChange(updatedBlocks);
         
-        // Trigger onSEOUpdate if available and not skipped
-        if (onSEOUpdate && !skipSEOUpdate) {
+        // Trigger onSEOUpdate if available
+        if (onSEOUpdate) {
           onSEOUpdate();
         }
       }
@@ -197,10 +194,6 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       },
     },
     onUpdate: ({ editor }) => {
-      if (preventContentOverwrite) {
-        console.log('Skipping content change during SEO analysis to preserve highlights');
-        return;
-      }
       const html = editor.getHTML();
       console.log('Editor updated with HTML:', html.substring(0, 200) + '...');
       const updatedBlocks = parseHTMLToBlocks(html);
@@ -228,16 +221,19 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     },
   });
 
-  // Effect to handle content updates from ContentBlocks (only when no URL content is loading)
+  // Effect to handle content updates from ContentBlocks
   useEffect(() => {
-    if (editor && content && content.length > 0 && !isLoadingContent && !preventContentOverwrite) {
-      const htmlContent = contentToHTML(content);
-      console.log('Setting content from ContentBlocks:', htmlContent.substring(0, 200) + '...');
-      editor.commands.setContent(htmlContent);
+    if (editor && content && content.length > 0) {
+      // Update content if not currently loading from URL
+      if (!isLoadingContent) {
+        const htmlContent = contentToHTML(content);
+        console.log('Updating content from ContentBlocks:', htmlContent.substring(0, 200) + '...');
+        editor.commands.setContent(htmlContent);
+      }
     }
-  }, [content, editor, isLoadingContent, preventContentOverwrite]);
+  }, [content, editor, isLoadingContent]);
 
-  // Effect to handle URL changes from parent component
+  // Effect to handle URL changes from parent component - this takes priority
   useEffect(() => {
     if (url && url.trim() && url.startsWith('http') && url !== currentUrl && editor) {
       console.log('URL changed from parent:', url);
@@ -252,33 +248,15 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       console.log('Debouncing URL input:', currentUrl);
       const timeoutId = setTimeout(() => {
         loadContentFromUrl(currentUrl);
-      }, 1000);
+      }, 1000); // Increased debounce to prevent excessive calls
       return () => clearTimeout(timeoutId);
     }
   }, [currentUrl, url, editor]);
-
-  // Effect to handle force reload when form is submitted on editor page
-  useEffect(() => {
-    if (forceReload && forceReload > 0 && url && url.trim() && url.startsWith('http') && editor) {
-      console.log('Force reloading content for URL:', url, 'trigger:', forceReload);
-      setCurrentUrl(url);
-      const loadContent = async () => {
-        await loadContentFromUrl(url, true);
-        
-        setTimeout(() => {
-          analyzeSEOKeywords();
-        }, 1000);
-      };
-      loadContent();
-    }
-  }, [forceReload]);
 
   const analyzeSEOKeywords = async () => {
     if (!editor || !content.length) return;
     
     setIsAnalyzing(true);
-    setPreventContentOverwrite(true); 
-    
     try {
       const contentText = content.map(block => block.content).join(' ');
       
@@ -303,7 +281,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       console.error('SEO analysis error:', error);
     } finally {
       setIsAnalyzing(false);
-       }
+    }
   };
 
   const highlightKeywords = (keywords: SEOKeywordSuggestion[]) => {
@@ -311,8 +289,10 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
 
     console.log('Highlighting keywords:', keywords);
 
+    // First, clear ALL existing highlights
     editor.chain().focus().unsetSEOHighlight().run();
 
+    // Add a small delay to ensure the unset operation completes
     setTimeout(() => {
       keywords.forEach((keywordData, index) => {
         const searchTerm = keywordData.word.toLowerCase().trim();
@@ -538,6 +518,9 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
 
   return (
     <div className="relative">
+      {/* URL Input for testing */}
+      
+
       <div className="mb-4 space-y-4">    
         <div className="flex gap-2">
           <Button
@@ -562,14 +545,14 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
           )}
           
           {/* Debug button for testing HTML rendering */}
-          <Button
+          {/* <Button
             onClick={testHTMLRendering}
             variant="outline"
             size="sm"
             className="bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
           >
             🧪 Test HTML
-          </Button>
+          </Button> */}
         </div>
       </div>
 
