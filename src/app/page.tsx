@@ -256,7 +256,13 @@ export default function Home() {
                       content={content.content}
                       onContentChange={handleContentChange}
                       onSEOUpdate={() => {
-                        setSeoUpdateTrigger(prev => prev + 1);
+                        console.log('=== onSEOUpdate called ===');
+                        console.log('Current seoUpdateTrigger:', seoUpdateTrigger);
+                        setSeoUpdateTrigger(prev => {
+                          const newValue = prev + 1;
+                          console.log('Setting new seoUpdateTrigger:', newValue);
+                          return newValue;
+                        });
                       }}
                       url={url}
                     />

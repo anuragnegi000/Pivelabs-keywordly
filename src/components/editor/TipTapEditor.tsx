@@ -39,18 +39,6 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [showRewriteDialog, setShowRewriteDialog] = useState(false);
-  
-  // Debounce SEO updates to prevent excessive API calls
-  const seoUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const debouncedSEOUpdate = () => {
-    if (seoUpdateTimeoutRef.current) {
-      clearTimeout(seoUpdateTimeoutRef.current);
-    }
-    seoUpdateTimeoutRef.current = setTimeout(() => {
-      onSEOUpdate?.();
-    }, 3000); // Only trigger SEO update after 3 seconds of no changes
-  };
 
   const contentToHTML = (blocks: ContentBlock[]) => {
     return blocks.map(block => {
@@ -93,7 +81,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       const html = editor.getHTML();
       const updatedBlocks = parseHTMLToBlocks(html);
       onContentChange(updatedBlocks);
-      debouncedSEOUpdate(); // Use debounced version
+      // Don't trigger SEO update on every keystroke - only after rewrite
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to } = editor.state.selection;
@@ -354,10 +342,10 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       setShowRewriteButton(false);
       setTargetKeyword('');
       
-      // Trigger SEO update after a short delay to ensure editor has updated
+      // Trigger SEO update immediately after rewrite to show updated score
       setTimeout(() => {
-        console.log('Triggering SEO update after rewrite');
-        debouncedSEOUpdate(); // Use debounced version
+        console.log('Triggering immediate SEO update after rewrite');
+        onSEOUpdate?.(); // Call directly for immediate update after rewrite
       }, 500);
       
     } catch (error) {

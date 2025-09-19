@@ -31,12 +31,15 @@ async function retryWithBackoff<T>(
 }
 
 function createSEOScorePrompt(content: ParsedContent, targetKeyword?: string, previousScore?: number): string {
-  console.log("Normal context is here before mapping the data",content);
+  console.log("Creating SEO score prompt for content with", content.content.length, "blocks");
   const contentText = content.content.map(block => block.content).join(' ');
-  console.log("Content text for SEO scoring",contentText);
+  console.log("Total content length:", contentText.length, "characters");
+  
   const words = contentText.split(' ');
-  console.log("Total words in content for SEO scoring",words);
-  const truncatedContent = words.slice(0, 300).join(' ');
+  console.log("Total words:", words.length);
+  
+  // Increase limit to handle larger content but stay within API limits
+  const truncatedContent = words.slice(0, 800).join(' '); // Increased from 300 to 800 words
   const headings = content.content.filter(b => b.type === 'heading' || b.type === 'subheading').length;
   
   

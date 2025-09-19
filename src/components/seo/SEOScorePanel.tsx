@@ -21,38 +21,26 @@ interface SEOScorePanelProps {
 export default function SEOScorePanel({ content, targetKeyword, onExport, lastUpdate: externalUpdate }: SEOScorePanelProps) {
   const [seoScore, setSeoScore] = useState<SEOScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [previousScore, setPreviousScore] = useState<number | null>(null);
   const [scoreImprovement, setScoreImprovement] = useState<string | null>(null);
-  
-  // Cache and debouncing refs
-  const lastRequestRef = useRef<string>('');
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const calculateSEOScore = async () => {
-    // Create unique key for this request to prevent duplicates
-    const contentText = content.content.map(block => block.content).join(' ');
-    const requestKey = `${contentText.substring(0, 100)}_${targetKeyword || ''}`;
+    console.log('=== calculateSEOScore called ===');
+    console.log('Content blocks:', content.content.length);
+    console.log('Target keyword:', targetKeyword);
     
-    // If this is the same request as last time, skip it
-    if (requestKey === lastRequestRef.current && seoScore) {
-      console.log('Skipping duplicate SEO score request');
-      return;
-    }
-    
-    lastRequestRef.current = requestKey;
     setIsLoading(true);
     
     try {
-      console.log('Calculating SEO score for content (debounced)');
+      console.log('Calculating SEO score immediately');
       
-      // Create a more unique storage key based on content hash
+      // Get content text for storage key
+      const contentText = content.content.map(block => block.content).join(' ');
       const contentHash = btoa(contentText.substring(0, 100)).substring(0, 10);
       const storageKey = `seo_score_${content.title || 'content'}_${contentHash}`;
       const storedScore = localStorage.getItem(storageKey);
       const prevScore = storedScore ? JSON.parse(storedScore).overall : null;
       
-      console.log('Storage key:', storageKey);
       console.log('Previous score found:', prevScore);
       
       const response = await fetch('/api/seo-score', {
@@ -74,7 +62,6 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
         const newScore = data.score;
         setSeoScore(newScore);
         
-        // Store the new score with timestamp
         const scoreData = {
           overall: newScore.overall,
           timestamp: new Date().toISOString(),
@@ -101,28 +88,10 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
   };
 
   useEffect(() => {
-    // Clear any existing timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    // Set a new debounced timer
-    debounceTimerRef.current = setTimeout(() => {
-      calculateSEOScore();
-    }, 2000); // Increased debounce to 2 seconds
+    console.log('SEOScorePanel: Content or trigger changed, calculating score immediately');
+    calculateSEOScore();
+  }, [content, targetKeyword, externalUpdate]);
 
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [content, targetKeyword, lastUpdate, externalUpdate]); // Removed calculateSEOScore from dependencies
-
-  const triggerUpdate = () => {
-    setLastUpdate(Date.now());
-  };
-
-  // Debug function to clear stored scores (useful for testing)
   const clearStoredScores = () => {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('seo_score_')) {
@@ -130,7 +99,8 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
       }
     });
     console.log('Cleared all stored SEO scores');
-    triggerUpdate();
+    // Recalculate score after clearing
+    calculateSEOScore();
   };
 
   const getStatusIcon = (status: string) => {
