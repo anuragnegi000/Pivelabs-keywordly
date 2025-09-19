@@ -28,10 +28,10 @@ async function retryWithBackoff<T>(
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
-    } catch (error: any) {
-      const isRateLimitError = error?.status === 503 || 
-                               error?.message?.includes('overloaded') ||
-                               error?.message?.includes('503');
+    } catch (error: unknown) {
+      const isRateLimitError = (error as { status?: number; message?: string })?.status === 503 || 
+                               (error as { message?: string })?.message?.includes('overloaded') ||
+                               (error as { message?: string })?.message?.includes('503');
       
       if (!isRateLimitError || i === maxRetries - 1) {
         throw error;
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Limit content length to reduce API usage
     const contentText = typeof content === 'string' ? content : 
-      (content.content ? content.content.map((block: any) => block.content).join(' ') : content);
+      (content.content ? content.content.map((block: { content: string }) => block.content).join(' ') : content);
     
     if (contentText.length > 10000) {
       return NextResponse.json(
@@ -117,8 +117,8 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ keywords });
 
-    } catch (aiError: any) {
-      console.log('AI analysis failed, using fallback keywords:', aiError.message);
+    } catch (aiError: unknown) {
+      console.log('AI analysis failed, using fallback keywords:', (aiError as Error).message);
       
       // Use fallback keyword detection
       const keywords = getFallbackKeywords(contentText);

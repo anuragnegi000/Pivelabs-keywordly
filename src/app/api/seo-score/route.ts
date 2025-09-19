@@ -13,10 +13,10 @@ async function retryWithBackoff<T>(
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
-    } catch (error: any) {
-      const isRateLimitError = error?.status === 503 || 
-                               error?.message?.includes('overloaded') ||
-                               error?.message?.includes('503');
+    } catch (error: unknown) {
+      const isRateLimitError = (error as { status?: number; message?: string })?.status === 503 || 
+                               (error as { message?: string })?.message?.includes('overloaded') ||
+                               (error as { message?: string })?.message?.includes('503');
       
       if (!isRateLimitError || i === maxRetries - 1) {
         throw error;
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     try {
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const prompt = createSEOScorePrompt(parsedContent, targetKeyword, previousScore);
-      
+    
       const result = await retryWithBackoff(async () => {
         const result = await model.generateContent(prompt);
         const response = await result.response;
@@ -134,19 +134,19 @@ export async function POST(request: NextRequest) {
         source: 'ai'
       });
 
-    } catch (aiError: any) {
-      console.log('AI SEO analysis failed, using fallback:', aiError.message);
+    } catch (aiError: unknown) {
+      console.log('AI SEO analysis failed, using fallback:', (aiError as Error).message);
       
       const seoScore = calculateSEOScore(parsedContent, targetKeyword);
       
       if (previousScore) {
         const improvement = seoScore.overall - previousScore;
-        (seoScore as any).previousScore = previousScore;
-        (seoScore as any).improvement = improvement > 0 ? `+${improvement} points better` : 
+        (seoScore as unknown as Record<string, unknown>).previousScore = previousScore;
+        (seoScore as unknown as Record<string, unknown>).improvement = improvement > 0 ? `+${improvement} points better` : 
                                        improvement < 0 ? `${improvement} points worse` : 'No change';
       } else {
-        (seoScore as any).previousScore = 0;
-        (seoScore as any).improvement = 'First analysis';
+        (seoScore as unknown as Record<string, unknown>).previousScore = 0;
+        (seoScore as unknown as Record<string, unknown>).improvement = 'First analysis';
       }
       
       return NextResponse.json({ 

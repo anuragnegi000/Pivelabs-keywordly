@@ -6,7 +6,7 @@ import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Highlight } from '@tiptap/extension-highlight';
 import { SEOHighlight } from '@/lib/tiptap-extensions/seo-highlight';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,13 +24,33 @@ interface TipTapEditorProps {
 
 export default function TipTapEditor({ content, onContentChange, onSEOUpdate, url }: TipTapEditorProps) {
   const [selectedText, setSelectedText] = useState('');
-  const [showRewriteDialog, setShowRewriteDialog] = useState(false);
-  const [targetKeyword, setTargetKeyword] = useState('');
+  const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const [isRewriting, setIsRewriting] = useState(false);
+  const [targetKeyword, setTargetKeyword] = useState('');
+  const [showRewriteModal, setShowRewriteModal] = useState(false);
+  const [rewriteOptions, setRewriteOptions] = useState({
+    tone: 'professional' as const,
+    length: 'same' as const
+  });
+  
+  // Missing state variables
   const [showRewriteButton, setShowRewriteButton] = useState(false);
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
-  const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
+  const [showRewriteDialog, setShowRewriteDialog] = useState(false);
+  
+  // Debounce SEO updates to prevent excessive API calls
+  const seoUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const debouncedSEOUpdate = () => {
+    if (seoUpdateTimeoutRef.current) {
+      clearTimeout(seoUpdateTimeoutRef.current);
+    }
+    seoUpdateTimeoutRef.current = setTimeout(() => {
+      onSEOUpdate?.();
+    }, 3000); // Only trigger SEO update after 3 seconds of no changes
+  };
 
   const contentToHTML = (blocks: ContentBlock[]) => {
     return blocks.map(block => {
@@ -73,7 +93,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       const html = editor.getHTML();
       const updatedBlocks = parseHTMLToBlocks(html);
       onContentChange(updatedBlocks);
-      onSEOUpdate?.();
+      debouncedSEOUpdate(); // Use debounced version
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to } = editor.state.selection;
@@ -194,7 +214,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
     const target = event.target as HTMLElement;
     if (target.classList.contains('seo-highlight')) {
       const suggestion = target.getAttribute('data-suggestion');
-      const reason = target.getAttribute('data-reason');
+      // const reason = target.getAttribute('data-reason'); // Currently unused
       const originalWord = target.getAttribute('data-original-word');
       const fromPos = target.getAttribute('data-from');
       const toPos = target.getAttribute('data-to');
@@ -224,7 +244,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
         editorElement.removeEventListener('click', handleSEOHighlightClick);
       };
     }
-  }, [editor]);
+  }, [editor, handleSEOHighlightClick]);
 
   const parseHTMLToBlocks = (html: string): ContentBlock[] => {
     const parser = new DOMParser();
@@ -337,7 +357,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
       // Trigger SEO update after a short delay to ensure editor has updated
       setTimeout(() => {
         console.log('Triggering SEO update after rewrite');
-        onSEOUpdate?.();
+        debouncedSEOUpdate(); // Use debounced version
       }, 500);
       
     } catch (error) {
@@ -420,7 +440,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
             <div>
               <label className="text-sm font-medium mb-2 block">Selected Text:</label>
               <div className="bg-gray-50 p-3 rounded border text-sm">
-                "{selectedText}"
+                &ldquo;{selectedText}&rdquo;
               </div>
             </div>
             
@@ -437,7 +457,7 @@ export default function TipTapEditor({ content, onContentChange, onSEOUpdate, ur
               />
               {targetKeyword && (
                 <p className="text-xs text-green-600 mt-1">
-                  ✓ This text will be optimized for "{targetKeyword}"
+                  ✓ This text will be optimized for &ldquo;{targetKeyword}&rdquo;
                 </p>
               )}
             </div>

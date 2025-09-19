@@ -1,10 +1,7 @@
 import { 
   SEOScore, 
   SEOBreakdown, 
-  SEOMetric, 
-  KeywordAnalysis, 
-  ReadabilityMetrics, 
-  ContentStructure 
+  SEOMetric
 } from '@/types/seo';
 import { ParsedContent, ContentBlock } from '@/types/content';
 
@@ -301,7 +298,7 @@ function getStatus(score: number): SEOMetric['status'] {
 function generateRecommendations(breakdown: SEOBreakdown): string[] {
   const recommendations: string[] = [];
   
-  Object.entries(breakdown).forEach(([key, metric]) => {
+  Object.entries(breakdown).forEach(([/* key */, metric]) => {
     if (metric.status === 'poor' || metric.status === 'needs-improvement') {
       recommendations.push(...metric.details.filter((detail: string) => !detail.includes(':')));
     }

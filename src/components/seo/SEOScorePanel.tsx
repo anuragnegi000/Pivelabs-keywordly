@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,15 +24,29 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [previousScore, setPreviousScore] = useState<number | null>(null);
   const [scoreImprovement, setScoreImprovement] = useState<string | null>(null);
+  
+  // Cache and debouncing refs
+  const lastRequestRef = useRef<string>('');
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const calculateSEOScore = async () => {
+    // Create unique key for this request to prevent duplicates
+    const contentText = content.content.map(block => block.content).join(' ');
+    const requestKey = `${contentText.substring(0, 100)}_${targetKeyword || ''}`;
+    
+    // If this is the same request as last time, skip it
+    if (requestKey === lastRequestRef.current && seoScore) {
+      console.log('Skipping duplicate SEO score request');
+      return;
+    }
+    
+    lastRequestRef.current = requestKey;
     setIsLoading(true);
+    
     try {
-      console.log('Calculating SEO score for content:', content);
-      console.log('Target keyword:', targetKeyword);
+      console.log('Calculating SEO score for content (debounced)');
       
       // Create a more unique storage key based on content hash
-      const contentText = content.content.map(block => block.content).join(' ');
       const contentHash = btoa(contentText.substring(0, 100)).substring(0, 10);
       const storageKey = `seo_score_${content.title || 'content'}_${contentHash}`;
       const storedScore = localStorage.getItem(storageKey);
@@ -87,12 +101,22 @@ export default function SEOScorePanel({ content, targetKeyword, onExport, lastUp
   };
 
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Set a new debounced timer
+    debounceTimerRef.current = setTimeout(() => {
       calculateSEOScore();
-    }, 1000);
+    }, 2000); // Increased debounce to 2 seconds
 
-    return () => clearTimeout(debounceTimer);
-  }, [content, targetKeyword, lastUpdate, externalUpdate]);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [content, targetKeyword, lastUpdate, externalUpdate]); // Removed calculateSEOScore from dependencies
 
   const triggerUpdate = () => {
     setLastUpdate(Date.now());

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, Lightbulb, Target, BookOpen, Settings, FileText } from 'lucide-react';
-import { SEOAnalysis, SEOImprovement } from '@/types/content';
+import { SEOAnalysis } from '@/types/content';
 
 interface SEOSuggestionsProps {
   analysis: SEOAnalysis | null;
@@ -96,7 +96,7 @@ export default function SEOSuggestions({ analysis, isVisible, onClose }: SEOSugg
                           </div>
                           
                           <div className="bg-gray-50 dark:bg-gray-800 rounded p-2 text-sm font-mono">
-                            "{improvement.text}"
+                            &ldquo;{improvement.text}&rdquo;
                           </div>
                           
                           <div className="space-y-1">
